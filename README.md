@@ -673,29 +673,7 @@ These experiments would help determine which components contribute most to detec
 
 Investigate smaller vision-language models, optimized inference, and lower-memory training configurations to make experimentation and practical deployment more accessible.
 
-## References
 
-1. Sun, K. et al. (2025). **Towards General Visual-Linguistic Face Forgery Detection.** Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR).
-
-   Paper: https://arxiv.org/abs/2502.20698
-
-2. Rössler, A. et al. (2019). **FaceForensics++: Learning to Detect Manipulated Facial Images.** Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV).
-
-   Paper: https://arxiv.org/abs/1901.08971
-
-3. Radford, A. et al. (2021). **Learning Transferable Visual Models From Natural Language Supervision.** International Conference on Machine Learning (ICML).
-
-   Paper: https://arxiv.org/abs/2103.00020
-
-4. Liu, H. et al. (2023). **Visual Instruction Tuning.** NeurIPS.
-
-   Paper: https://arxiv.org/abs/2304.08485
-
-5. Li, L. et al. (2020). **Face X-Ray for More General Face Forgery Detection.** Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR).
-
-   Paper: https://arxiv.org/abs/2003.01429
-
----
 
 ## Acknowledgements
 
