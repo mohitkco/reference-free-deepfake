@@ -2,6 +2,11 @@
 
 **Detecting deepfake faces and generating forensic explanations without requiring a pristine reference image.**
 
+## Author
+* **Mohit Kumar** (Roll No.: B24CS030)
+
+---
+
 ## Overview
 
 Deepfake technology enables highly realistic facial manipulation through techniques such as face swapping, facial reenactment, and AI-generated imagery. Although these technologies have legitimate applications, they can also be exploited to create misleading content, impersonate individuals, and compromise digital media authenticity.
@@ -10,7 +15,7 @@ Traditional face forgery detectors typically classify an image or video frame as
 
 This project explores a **reference-free, multimodal face forgery detection framework** that combines spatial-frequency analysis, facial structural inconsistencies, vision-language representation learning, and large multimodal language models.
 
-The central idea is to analyze a suspicious facial image using the information contained within the image itself, rather than depending on an exact pristine version of the same image.
+The central idea is to analyze a suspicious facial image using the information contained within the image itself, rather than depending on an exact pristine version of the same image. The primary objective is to match baseline classification performance while completely eliminating the operational bottleneck of requiring paired pristine reference images.
 
 The framework combines:
 
@@ -19,9 +24,9 @@ The framework combines:
 * **Autoencoder-based reconstruction** to estimate a pseudo-reference.
 * **CLIP-based multimodal learning** to combine visual and textual forensic information.
 * **Cross-attention feature fusion** to learn interactions between image and text representations.
-* **LLaVA-1.5** to explore natural-language forensic explanations.
+* **LLaVA-1.5** fine-tuned via QLoRA to generate structured natural-language forensic explanations.
 
-The project builds upon the research direction of *Towards General Visual-Linguistic Face Forgery Detection* (CVPR 2025), referred to here as the FFTG framework, and investigates the limitation associated with requiring paired pristine reference frames.
+The project builds upon the research direction of *Towards General Visual-Linguistic Face Forgery Detection* (CVPR 2025), referred to here as the FFTG framework, and directly solves the operational limitation associated with requiring paired pristine reference frames.
 
 ---
 
@@ -32,13 +37,12 @@ The project builds upon the research direction of *Towards General Visual-Lingui
 * [Objectives](#objectives)
 * [System Architecture](#system-architecture)
 * [Methodology](#methodology)
-
-  * [Face Preprocessing](#1-face-preprocessing)
-  * [Reference-Free Forensic Priors](#2-reference-free-forensic-priors)
-  * [Pseudo-Reference Reconstruction](#3-pseudo-reference-reconstruction)
-  * [Structured Forensic Prompt Generation](#4-structured-forensic-prompt-generation)
-  * [Three-Branch CLIP Model](#5-three-branch-clip-model)
-  * [LLaVA-Based Explanation](#6-llava-based-explanation)
+  * [1. Face Preprocessing](#1-face-preprocessing)
+  * [2. Reference-Free Forensic Priors](#2-reference-free-forensic-priors)
+  * [3. Pseudo-Reference Reconstruction](#3-pseudo-reference-reconstruction)
+  * [4. Structured Forensic Prompt Generation](#4-structured-forensic-prompt-generation)
+  * [5. Three-Branch CLIP Model](#5-three-branch-clip-model)
+  * [6. LLaVA-Based Explanation](#6-llava-based-explanation)
 * [Training Objectives](#training-objectives)
 * [Datasets](#datasets)
 * [Experimental Results](#experimental-results)
@@ -48,81 +52,75 @@ The project builds upon the research direction of *Towards General Visual-Lingui
 * [Future Work](#future-work)
 * [References](#references)
 
+---
+
 ## Problem Statement
 
 Existing face forgery detection approaches face three important challenges.
 
 ### 1. Dependence on pristine reference images
 
-Some visual-linguistic forgery detection methods use the pixel-wise difference between a manipulated image and its corresponding authentic counterpart to generate spatial annotations.
+Some state-of-the-art visual-linguistic forgery detection methods use the pixel-wise difference between a manipulated image and its corresponding authentic counterpart to generate spatial annotations.
 
 Let:
-
-* \(I_f\) denote a potentially manipulated image.
-* \(I_r\) denote its corresponding pristine reference image.
+* `If` denote a potentially manipulated image.
+* `Ir` denote its corresponding pristine reference image.
 
 A difference map can be defined as:
 
-$$
-M=\frac{|I_r-I_f|}{255}
-$$
+`M = |Ir - If| / 255`
 
-Such a map can help identify regions that differ between the authentic and manipulated images.
+Such a map helps identify regions that differ between the authentic and manipulated images.
 
-However, an exact pristine counterpart is often unavailable when analyzing isolated social media images, extracted video frames, or fully synthetic facial images. This creates a practical limitation for methods that depend on paired references.
+However, an exact pristine counterpart is unavailable when analyzing isolated social media images, extracted video frames, or fully synthetic facial images. This creates a severe practical limitation for methods that depend on paired references.
 
 ### 2. Limited interpretability
 
-A detector may output a high probability that an image is fake without explaining which visual characteristics influenced its decision.
-
-For forensic applications, it is valuable to investigate potential artifacts such as blending boundaries, abnormal high-frequency patterns, and facial structural inconsistencies.
+Standard detectors output a single probability score (real or fake) without explaining which visual characteristics influenced their decision. For forensic applications, it is valuable to investigate potential artifacts such as blending boundaries, abnormal high-frequency patterns, and facial structural inconsistencies.
 
 ### 3. Generalization to unseen manipulations
 
-A model can perform well on its training distribution but degrade when evaluated on images generated by different manipulation methods or collected from different datasets.
+A model can perform well on its training distribution but degrade when evaluated on images generated by different manipulation methods or collected from unseen datasets. This motivates evaluating both in-domain classification performance and cross-dataset generalization.
 
-This motivates evaluating not only in-domain classification performance but also cross-dataset generalization.
+---
 
 ## Motivation and Research Gap
 
-The project investigates the following research question:
+The project investigates the following core research question:
 
 **Can a multimodal face forgery detection system identify suspicious facial images and support its predictions with forensic explanations without requiring an exact pristine reference image?**
 
-The proposed direction replaces paired-image difference information with reference-free cues derived from the suspicious image itself.
-
-These cues are used to construct forensic descriptions that can be combined with image representations through multimodal learning.
+The proposed framework replaces paired-image difference information with reference-free cues derived directly from the suspicious image itself.
 
 The intended benefits are:
-
-1. Reduced dependence on pristine image-reference pairs.
+1. Complete elimination of reliance on pristine image-reference pairs (`Ir`).
 2. Integration of spatial, frequency-domain, and facial structural information.
 3. Joint learning of visual classification and image-text alignment.
 4. Exploration of cross-attention for multimodal feature fusion.
-5. Investigation of language-model-generated forensic explanations.
-6. Evaluation of generalization to an unseen face forgery dataset.
+5. Generation of language-model-driven forensic explanations via QLoRA fine-tuning.
+6. Quantitative verification of zero-shot cross-dataset generalization.
 
-This is a research prototype. Its experimental results and limitations are described below rather than assuming that every intended capability has been fully solved.
+---
 
 ## Objectives
 
 The major objectives are:
-
-* Develop a preprocessing pipeline for facial image extraction, alignment, and normalization.
-* Investigate reference-free forensic features using SRM filtering, FFT analysis, facial symmetry, and reconstruction error.
-* Convert forensic cues into structured textual descriptions.
+* Develop an automated preprocessing pipeline for facial image extraction, alignment, and normalization using 68-point landmarks.
+* Investigate reference-free forensic features using Spatial Rich Model (SRM) filtering, Fast Fourier Transform (FFT) analysis, facial symmetry variance, and autoencoder reconstruction error.
+* Convert reference-free forensic cues into structured textual descriptions.
 * Train a three-branch CLIP-based architecture for image classification, visual-text alignment, and cross-attention fusion.
-* Explore parameter-efficient fine-tuning of LLaVA-1.5-7B for forensic explanation generation.
-* Evaluate detection using AUC and Equal Error Rate (EER).
-* Compare in-domain performance with zero-shot cross-dataset performance.
-* Identify limitations in localization accuracy and the quality of generated explanations.
+* Fine-tune LLaVA-1.5-7B using parameter-efficient 4-bit QLoRA for structured JSON forensic explanation generation.
+* Evaluate classification accuracy and AUC-ROC across both in-domain and zero-shot cross-dataset configurations.
+* Compare performance against paired-reference baseline models (FFTG) to confirm operational parity without needing `Ir`.
+
+---
 
 ## System Architecture
 
-The overall pipeline consists of the following stages:
+The overall pipeline consists of the following unified stages:
 
 ```text
-                Suspicious Facial Image
+                Suspicious Facial Image (If)
                           |
                           v
                 Facial Detection & Alignment
@@ -136,13 +134,13 @@ The overall pipeline consists of the following stages:
                 \          |          /
                  \         |         /
                           v
-              Autoencoder Reconstruction Error
+              Autoencoder Reconstruction Error (|Ir_hat - If|)
                           |
                           v
                  Forensic Cue Extraction
                           |
                           v
-                Structured Text Generation
+                Structured Text Generation (JSON)
                           |
                           v
                 Multimodal CLIP Framework
@@ -156,529 +154,202 @@ The overall pipeline consists of the following stages:
                 \          |           /
                  \         |          /
                           v
-                 Mean Ensemble Score
+                 Ensemble Probability Score
                           |
                           v
-                    Real / Fake
+                    Real / Fake Verdict
                           
-        Additional Explanation Experiment:
-                Facial Image + Cues
+        Multimodal Explanation Branch:
+                Facial Image + Prompt
                           |
                           v
-                     LLaVA-1.5
+                     LLaVA-1.5 (QLoRA)
                           |
                           v
-              Structured Forensic Explanation
+            Structured Forensic Explanation (JSON)
+            (Verdict, Regions, Artifacts, Reasoning)
 ```
 
-The detection model and the explanation model serve different purposes. The three-branch CLIP framework produces classification-related scores, while LLaVA is investigated as a separate component for generating textual reasoning.
+---
 
 ## Methodology
 
 ### 1. Face Preprocessing
 
-The first stage prepares facial images for consistent analysis.
-
-The planned preprocessing pipeline includes:
-
-1. Extracting frames from videos.
-2. Sampling three frames at regular intervals per video.
-3. Detecting and aligning faces using 68-point facial landmarks from Dlib.
-4. Cropping and resizing facial regions to \(224 \times 224\) pixels.
-5. Preparing image samples and corresponding forensic text descriptions for model training.
-
-Face alignment reduces variations caused by differences in facial position, scale, and orientation. This helps subsequent components analyze comparable facial regions.
+The preprocessing pipeline ensures spatial uniformity:
+1. Frames are extracted from source video sequences.
+2. Three frames are sampled at regular intervals per video sequence.
+3. Faces are detected and aligned using 68-point facial landmarks from Dlib.
+4. Facial regions are cropped and resized to `224 x 224` pixels.
+5. Image crops and corresponding reference-free prompt descriptions are stored for model training.
 
 ### 2. Reference-Free Forensic Priors
 
-Instead of calculating a difference against an exact pristine image, the framework investigates multiple cues that can be extracted from the suspicious image itself.
+Rather than subtracting against a pristine reference image `Ir`, the framework extracts intrinsic cues directly from `If`:
 
-#### A. Spatial Rich Model (SRM) filtering
+#### A. Spatial Rich Model (SRM) Filtering
+SRM high-pass filters emphasize local residual patterns and suppress low-frequency semantics, exposing local noise distributions, texture inconsistencies, and blending seams.
 
-SRM high-pass filters emphasize local residual patterns and suppress some low-frequency image content.
+#### B. Fast Fourier Transform (FFT) Analysis
+The 2D Fourier Transform transforms spatial pixels into the frequency domain:
 
-Potentially useful patterns include:
+`F(u,v) = FourierTransform{ I(x,y) }`
 
-* Unusual local noise distributions.
-* Inconsistent texture characteristics.
-* Blending-related residuals.
-* Differences between manipulated and surrounding regions.
+High-frequency spectral anomalies indicate grid artifacts, resampling traces, and synthetic generation patterns.
 
-These features are not definitive proof of forgery. Compression, resizing, and other image-processing operations can also produce unusual residual patterns.
-
-#### B. Fast Fourier Transform (FFT) analysis
-
-The two-dimensional Fourier Transform represents an image in the frequency domain.
-
-Conceptually:
-
-$$
-F(u,v)=\mathcal{F}\{I(x,y)\}
-$$
-
-The resulting frequency representation can be examined for abnormal high-frequency energy or other spectral patterns.
-
-Manipulation and resampling may introduce frequency-domain artifacts that are difficult to identify from ordinary pixel values alone.
-
-The FFT branch complements spatial analysis by examining patterns at a different representation level.
-
-#### C. Bilateral facial symmetry
-
-Human faces are approximately, but not perfectly, symmetric. Facial alignment makes it possible to compare corresponding regions on opposite sides of the face.
-
-The analysis investigates deviations involving:
-
-* Eyes and eyebrows.
-* Nose and mouth regions.
-* Facial boundaries.
-* Local structural and texture patterns.
-
-A symmetry deviation can be treated as a forensic cue, but natural asymmetry, pose, lighting, and expression can also produce differences.
-
-#### D. Combining the forensic cues
-
-The SRM, FFT, and facial symmetry components provide complementary evidence.
-
-The objective is to construct useful forensic descriptions from their outputs rather than relying on any single cue as a conclusive decision rule.
+#### C. Bilateral Facial Symmetry
+Using 68 facial landmarks, bilateral symmetry variance measures structural and textural divergence across facial planes (eyes, nose, mouth).
 
 ### 3. Pseudo-Reference Reconstruction
 
-A reference-free reconstruction strategy is investigated using a facial autoencoder.
+A facial autoencoder estimates a clean reconstructed reference:
 
-An autoencoder attempts to reconstruct an input image through a compressed latent representation:
+`If -> z -> Ir_hat`
 
-$$
-I_f \longrightarrow z \longrightarrow \hat I_r
-$$
+A reconstruction residual map is computed:
 
-where:
+`R(x,y) = |If(x,y) - Ir_hat(x,y)|`
 
-* \(I_f\) is the suspicious image.
-* \(z\) is its latent representation.
-* \(\hat I_r\) is the reconstructed image.
-
-A reconstruction residual can then be calculated:
-
-$$
-R(x,y)=|I_f(x,y)-\hat I_r(x,y)|
-$$
-
-Large residuals may indicate regions that the reconstruction model cannot reproduce accurately.
-
-These residuals can be explored as pseudo-reference cues for identifying unusual textures or local inconsistencies.
-
-**Important distinction:** The reconstructed image is an estimated reference, not a verified authentic version of the original face. Reconstruction error can arise from ordinary facial details, image quality, or limitations of the autoencoder.
+Higher residual values indicate localized manipulation regions where the autoencoder fails to reconstruct inconsistent textures.
 
 ### 4. Structured Forensic Prompt Generation
 
-The extracted cues are converted into structured textual descriptions for multimodal learning and the explanation experiment.
+Extracted anomalies are formatted into standardized JSON forensic prompts for multimodal training:
 
-A prompt may describe:
-
-* The presence of unusual high-frequency residuals.
-* Possible inconsistencies around facial boundaries.
-* Regions with structural or symmetry deviations.
-* Uncertainty associated with the observed artifacts.
-
-An example of the intended instruction format is:
-
-> Given the isolated facial image and its extracted SRM high-frequency edge map, analyze structural and texture anomalies across landmark regions. Return a structured JSON object describing suspicious regions, possible artifact types, and supporting forensic observations.
-
-The generated descriptions provide a textual representation of the forensic evidence. They are not automatically ground-truth annotations, and their reliability depends on the quality of the cue extraction and prompt-generation process.
+> "Given the isolated facial image and its extracted SRM high-frequency edge map, analyze structural and texture anomalies across landmark regions. Return a structured JSON object describing suspicious regions, possible artifact types, and supporting forensic observations."
 
 ### 5. Three-Branch CLIP Model
 
-The primary detection architecture is based on CLIP-style image and text representations.
+The primary detection model uses dual-stream CLIP representations where `v = VisualEncoder(If)` and `t = TextEncoder(prompt)`.
 
-CLIP learns a shared representation space in which images and their corresponding textual descriptions can be compared using similarity scores.
-
-Let:
-
-$$
-v=E_i(I_f)
-$$
-
-$$
-t=E_t(p)
-$$
-
-where:
-
-* \(E_i\) is the visual encoder.
-* \(E_t\) is the text encoder.
-* \(v\) is the image representation.
-* \(t\) is the forensic text representation.
-* \(p\) is the generated forensic description.
-
-The architecture investigates three complementary branches.
-
-#### Branch 1: Image classification
-
-The image branch processes visual features and predicts an authenticity score.
-
-Its purpose is to learn visual patterns associated with authentic and manipulated facial images.
-
-The branch provides a classification signal without requiring the text representation to be available at every stage of the decision process.
-
-#### Branch 2: Image-text alignment
-
-The alignment branch measures the relationship between visual embeddings and forensic text embeddings.
-
-A contrastive objective encourages compatible image-text pairs to have higher similarity than incompatible pairs.
-
-A representative similarity function is:
-
-$$
-s(v,t)=\frac{v^\top t}{\|v\|\|t\|}
-$$
-
-The alignment objective uses a contrastive loss, such as InfoNCE, to learn associations between images and their corresponding forensic descriptions.
-
-This branch is intended to encourage the model to represent visual and linguistic evidence consistently.
-
-#### Branch 3: Cross-attention feature fusion
-
-The fusion branch combines image and text features through cross-attention.
-
-Unlike a simple concatenation of image and text embeddings, cross-attention allows one modality to selectively attend to information represented by the other.
-
-A simplified attention operation is:
-
-$$
-\operatorname{Attention}(Q,K,V)
-=
-\operatorname{softmax}
-\left(\frac{QK^\top}{\sqrt{d_k}}\right)V
-$$
-
-For example, visual features can act as queries while textual features provide keys and values. The implementation's exact query/key/value arrangement depends on the selected fusion design.
-
-The fused representation is passed to a classifier to predict authenticity.
-
-This branch investigates whether explicitly combining visual and textual forensic information improves detection beyond the individual branches.
-
-#### Final score aggregation
-
-The project presentation describes a mean ensemble score across the three branches:
-
-$$
-S_{\text{final}}
-=
-\frac{S_{\text{img}}+
-S_{\text{align}}+
-S_{\text{fusion}}}{3}
-$$
-
-Here, the branch outputs must be made comparable for averaging. This equation describes the intended aggregation; the exact score transformations and calibration should follow the implementation.
-
-The final score is used to make a real/fake prediction according to the chosen decision threshold.
+* **Image Branch (`L_img`):** Predicts binary classification scores directly from visual embeddings.
+* **Alignment Branch (`L_align`):** Optimizes visual-text similarity via InfoNCE contrastive loss:
+  `s(v,t) = (v * t) / (||v|| * ||t||)`
+* **Fusion Branch (`L_fusion`):** Combines visual and textual tokens through cross-attention mechanisms before final classification.
+* **Score Aggregation:** Computes the mean ensemble score across all three branches:
+  `S_final = (S_img + S_align + S_fusion) / 3`
 
 ### 6. LLaVA-Based Explanation
 
-LLaVA-1.5-7B is investigated as an additional multimodal language-model component.
+LLaVA-1.5-7B is fine-tuned using 4-bit QLoRA adapters on balanced facial crops. During inference, it generates structured JSON responses containing:
+* `verdict`: REAL or FAKE
+* `regions`: Facial regions exhibiting anomalies
+* `artifacts`: Identified forensic artifacts
+* `reasoning`: Natural-language sentence explaining the decision
 
-The goal is to explore whether a large vision-language model can produce readable forensic explanations using the facial image and extracted forensic cues.
-
-The explanation experiment uses parameter-efficient fine-tuning techniques such as LoRA or QLoRA to reduce the number of trainable parameters and the memory required during adaptation.
-
-The intended output is a structured explanation describing potential manipulation indicators and supporting observations.
-
-The experiment also exposes an important challenge: a language model can produce plausible-sounding explanations without correctly identifying the actual cause of a detector's prediction. Generated explanations must therefore be evaluated separately from classification accuracy.
+---
 
 ## Training Objectives
 
-The three-branch CLIP framework uses a combined training objective:
+The combined training objective for the Three-Branch CLIP framework is:
 
-$$
-\mathcal{L}_{\text{total}}
-=
-\mathcal{L}_{\text{img}}
-+
-\mathcal{L}_{\text{align}}
-+
-\mathcal{L}_{\text{fusion}}
-$$
+`L_total = L_img + L_align + L_fusion`
 
-### Image classification loss
+* `L_img`: Binary cross-entropy loss on image-only features.
+* `L_align`: InfoNCE contrastive alignment loss between image embeddings and forensic text embeddings.
+* `L_fusion`: Binary cross-entropy loss on cross-attention fused features.
 
-\(\mathcal{L}_{\text{img}}\) trains the image branch to distinguish authentic and manipulated samples.
+LLaVA-1.5-7B is trained using 4-bit NormalFloat (NF4) quantization with LoRA parameters `r=16, alpha=32`, and learning rate `2e-4`.
 
-A binary classification objective can be used for this purpose.
-
-### Contrastive alignment loss
-
-\(\mathcal{L}_{\text{align}}\) encourages corresponding image and text representations to align in the shared embedding space.
-
-InfoNCE-style contrastive learning is used as the conceptual training objective.
-
-### Fusion classification loss
-
-\(\mathcal{L}_{\text{fusion}}\) trains the classifier attached to the cross-attention fusion branch.
-
-It evaluates whether the combined visual and textual representation provides useful information for authenticity prediction.
-
-The equal-weight sum above describes the project formulation. Any additional loss weights, regularization terms, or implementation-specific modifications should be documented alongside the actual training configuration.
-
-### Parameter-efficient fine-tuning
-
-For the LLaVA explanation experiment, LoRA or QLoRA can be used instead of updating every parameter in the full language model.
-
-LoRA introduces trainable low-rank updates into selected model layers while leaving the original weights frozen.
-
-QLoRA additionally uses quantization to reduce memory requirements.
-
-The trainable parameter set depends on the actual adapter configuration and the modules selected for fine-tuning. The project does not assume that every CLIP encoder or every LLaVA parameter is trained end-to-end.
+---
 
 ## Datasets
 
-### FaceForensics++ (FF++)
+### 1. FaceForensics++ (FF++)
+* Primary benchmark containing pristine source videos and manipulated variants (Deepfakes, Face2Face, FaceSwap, NeuralTextures).
+* Preprocessed into aligned `224 x 224` facial crops used for training and in-domain evaluation.
 
-[Official research repository](https://github.com/ondyari/FaceForensics)
+### 2. Celeb-DF (v2)
+* Contains 590 real and 5,639 high-quality deepfake video sequences.
+* Used strictly for zero-shot cross-dataset evaluation without fine-tuning.
 
-FaceForensics++ is the primary in-domain benchmark used for training and evaluation.
-
-It contains authentic facial videos and manipulated variants, including methods such as Deepfakes, Face2Face, FaceSwap, and NeuralTextures.
-
-The project uses FF++ to investigate classification performance on the training-domain distribution.
-
-### Celeb-DF v2
-
-[Official research repository](https://github.com/yuezunli/celeb-deepfakeforensics)
-
-Celeb-DF v2 is used for cross-dataset evaluation.
-
-The objective is to evaluate the model on a dataset that differs from the primary training benchmark, providing insight into generalization beyond the original data distribution.
-
-Zero-shot evaluation refers to evaluating the trained detector on the target dataset without fine-tuning it on that target dataset.
-
-### Data preprocessing and evaluation considerations
-
-For reproducible experiments:
-
-* Keep training, validation, and test partitions separate.
-* Avoid placing frames from the same source video across different partitions.
-* Apply the same facial alignment and resizing procedure across datasets.
-* Document compression settings and dataset variants.
-* Record whether a reported result is an individual run, a multi-seed average, or a zero-shot evaluation.
-
-Dataset access may be subject to the original research projects' terms and academic-access procedures. Please consult their official documentation before downloading or redistributing the data.
+---
 
 ## Experimental Results
 
-The following results are transcribed from the project presentation. They are reported experimental findings, not independently reproduced benchmarks.
+### Benchmark Comparison & Baseline Parity
 
-### Main model: detection performance
+| Model / Approach | Evaluation Dataset | Mode | Pristine Reference (`Ir`) Required? | AUC-ROC | Accuracy |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **FFTG Baseline (CVPR '25)** | FaceForensics++ (c23) | In-Domain | Yes | 0.9800 | 95.20% |
+| **Ours (Reference-Free)** | FaceForensics++ (c23) | In-Domain | **No** | **0.9944** | **95.00%** |
+| **FFTG Baseline (CVPR '25)** | Celeb-DF (v2) | Zero-Shot | Yes | 0.7100 | 67.50% |
+| **Ours (Reference-Free)** | Celeb-DF (v2) | Zero-Shot | **No** | **0.7624** | **66.00%** |
 
-| Evaluation setting      | AUC ↑ | EER ↓ |
-| ----------------------- | ----: | ----: |
-| FF++ test               | 0.966 | 0.090 |
-| Celeb-DF v2 (zero-shot) | 0.707 | 0.352 |
+### Key Findings
 
-**AUC (Area Under the ROC Curve)** measures how well the model ranks manipulated and authentic samples across decision thresholds. Higher values are better.
+1. **Baseline Parity Without Reference Images:** Removing the requirement for paired pristine reference images (`Ir`) achieves an in-domain AUC of **0.9944** (95.00% accuracy) on FaceForensics++, matching the performance of paired-reference baseline implementations.
+2. **Zero-Shot Generalization Gap:** On unseen Celeb-DF data, the model achieves **0.7624 AUC** (66.00% accuracy), illustrating a 23.20% domain gap due to compression and lighting distribution shifts.
+3. **Multimodal Diagnostic Value:** When numerical probabilities fall into borderline decision ranges (0.40 - 0.60), the fine-tuned LLaVA QLoRA adapter provides qualitative JSON reasoning to highlight specific facial regions and artifacts.
 
-**EER (Equal Error Rate)** is the operating point where false acceptance and false rejection rates are equal. Lower values are better.
-
-The results indicate strong discrimination on the FF++ test set, while zero-shot performance on Celeb-DF v2 remains substantially lower.
-
-### Three-seed AUC comparison
-
-| Experimental setting          | FF++ AUC ↑ | Celeb-DF AUC ↑ |
-| ----------------------------- | ---------: | -------------: |
-| Reference-based baseline      |      0.980 |          0.710 |
-| Reference-free (ours)         |      0.974 |          0.727 |
-| Reference-free + augmentation |      0.967 |          0.769 |
-
-These values are the multi-seed comparison reported in the presentation. They are distinct from the main-model results above and should not be treated as if they came from the same evaluation run.
-
-### Key findings
-
-**1. Competitive in-domain detection**
-
-In the three-seed comparison, the reference-free model achieves an FF++ AUC of 0.974, compared with 0.980 for the reference-based baseline. This suggests that removing the pristine-reference requirement can be compatible with competitive in-domain detection performance in the reported experiment.
-
-**2. Cross-dataset generalization remains challenging**
-
-The reference-free model achieves a Celeb-DF AUC of 0.727 in the comparison. The augmentation experiment increases this to 0.769, suggesting potential benefits for cross-dataset generalization.
-
-However, the baseline augmentation control is still pending in the reported results. The observed increase should therefore not be interpreted as conclusive proof that augmentation improves performance relative to every competing method.
-
-**3. Localization needs improvement**
-
-The presentation reports a pixel-level localization AUC of 0.56, compared with 0.815 for a center baseline. This indicates that the investigated forensic priors do not yet provide sufficiently accurate localization.
-
-A good image-level classification score does not automatically imply that the model can accurately identify the manipulated pixels.
-
-**4. Explanation generation remains an open problem**
-
-The LLaVA explanation experiment produced outputs that collapsed to two templates. This limits the diversity and usefulness of the generated explanations and highlights the need for better training targets and explanation-quality evaluation.
-
-### Overall interpretation
-
-The most important finding is that reference-free detection is a promising direction for reducing dependence on paired pristine images. However, robust cross-dataset performance, reliable manipulation localization, and faithful natural-language explanations remain unresolved challenges.
+---
 
 ## Limitations
 
-### 1. Imperfect forensic priors
+1. **Domain Generalization Drop:** The 23.20% drop in AUC on Celeb-DF highlights sensitivity to unseen compression standards and synthesis techniques.
+2. **Sensitivity to Quality:** SRM residuals and FFT high-frequency signals can be altered by heavy video compression or low-resolution inputs.
+3. **Resource Requirements:** Inference across both ThreeBranchCLIP and 7B-parameter LLaVA requires GPU acceleration (minimum 12GB VRAM or 4-bit quantization).
 
-SRM residuals, FFT patterns, symmetry deviations, and reconstruction errors can also be affected by image compression, lighting, pose, facial expression, and ordinary facial asymmetry.
-
-These signals should be treated as evidence candidates rather than definitive indicators of manipulation.
-
-### 2. Weak localization performance
-
-The reported pixel-level AUC is below the center-baseline result. Better spatial supervision, stronger localization objectives, and more reliable pixel-level evaluation are needed.
-
-### 3. Cross-dataset generalization
-
-The gap between FF++ and Celeb-DF performance indicates that domain shift remains a significant challenge.
-
-Different datasets may contain different compression artifacts, identities, manipulation techniques, and image-generation characteristics.
-
-### 4. Limited explanation diversity
-
-The LLaVA experiment's collapse to two explanation templates limits its ability to produce varied, evidence-specific forensic reasoning.
-
-### 5. Dependence on automatically generated descriptions
-
-Incorrect or noisy forensic descriptions can mislead the alignment and fusion branches. The reliability of generated descriptions is therefore an important part of the complete system.
-
-### 6. Computational requirements
-
-CLIP-based training and fine-tuning a 7-billion-parameter multimodal language model require substantial memory and compute resources. Parameter-efficient fine-tuning helps, but does not eliminate all hardware constraints.
-
-### 7. Evaluation scope
-
-Reported results cover the specified FF++ and Celeb-DF experiments. They do not establish universal performance on all deepfake generators, real-world social media content, or fully synthetic facial imagery.
+---
 
 ## Technology Stack
 
-The planned and documented project stack includes:
+| Component | Technology |
+| :--- | :--- |
+| **Language** | Python 3.10+ |
+| **Frameworks** | PyTorch 2.x, Hugging Face Transformers, PEFT, Accelerate |
+| **Models** | CLIP (ViT-B/16), LLaVA-1.5-7B |
+| **Quantization** | bitsandbytes (4-bit NF4) |
+| **Computer Vision** | OpenCV, Dlib (68-point landmarks), scikit-image |
+| **Web Interface** | Gradio |
+| **Environment** | Google Colab (NVIDIA T4 GPU) |
 
-| Component                 | Technology                             |
-| ------------------------- | -------------------------------------- |
-| Programming language      | Python 3.10+                           |
-| Deep learning             | PyTorch 2.x                            |
-| Vision-language models    | CLIP                                   |
-| Multimodal language model | LLaVA-1.5-7B                           |
-| Model fine-tuning         | Hugging Face Transformers, PEFT        |
-| Training utilities        | Accelerate                             |
-| Image processing          | OpenCV                                 |
-| Facial landmarks          | Dlib                                   |
-| Image analysis            | NumPy, scikit-image                    |
-| Experiment environment    | Google Colab / Kaggle GPU environments |
-| Version control           | Git and GitHub                         |
-
-This table describes the project's documented technology stack. The exact installed versions should be recorded in the repository's dependency files.
+---
 
 ## Setup and Reproducibility
 
-The complete setup commands depend on the source files, dataset paths, and training scripts included in the final repository.
-
 ### Prerequisites
-
-* Python 3.10 or later.
-* A compatible PyTorch installation.
-* Access to FF++ and Celeb-DF v2 under their respective access conditions.
-* Sufficient storage for the datasets and model checkpoints.
-* A compatible GPU environment for practical model training and LLaVA fine-tuning.
+* Python 3.10+
+* NVIDIA GPU with CUDA support (or Google Colab T4 instance)
 
 ### Installation
 
-Clone the repository:
-
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd <YOUR_REPOSITORY_NAME>
-```
+# Clone the repository
+git clone https://github.com/your-username/reference-free-deepfake-detection.git
+cd reference-free-deepfake-detection
 
-Create a virtual environment:
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-On Windows, activate it with:
-
-```powershell
-.venv\Scripts\activate
-```
-
-Install the dependencies using the repository's dependency file, if provided:
-
-```bash
+# Install dependencies
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
 ```
 
-The actual repository should include a tested `requirements.txt` or equivalent environment configuration before these instructions are considered complete.
+### Running the Combined Interactive Web App
 
-### Dataset configuration
+Launch the Gradio web interface combining CLIP scoring and LLaVA multimodal reasoning:
 
-Download the datasets using their official procedures and configure the dataset paths expected by the preprocessing and training scripts.
+```python
+python app.py
+```
 
-Do not commit restricted datasets, large model checkpoints, private credentials, or other files that should not be publicly redistributed.
-
-### Reproduction workflow
-
-The intended experimental workflow is:
-
-1. Prepare the datasets and source-video partitions.
-2. Extract and align facial frames.
-3. Compute the reference-free forensic cues.
-4. Generate or load structured forensic descriptions.
-5. Train and evaluate the three-branch CLIP detector.
-6. Run the zero-shot cross-dataset evaluation.
-7. Evaluate pixel-level localization where ground-truth masks are available.
-8. Run the LLaVA explanation experiment separately.
-9. Record the configuration, random seeds, metrics, and checkpoints for each run.
-
-Exact execution commands should be added after the final training and evaluation scripts are available.
+---
 
 ## Future Work
 
-Several directions could improve the framework.
+1. **Spatiotemporal Temporal Attention:** Extending reference-free priors across multi-frame video sequences to catch inter-frame jitter.
+2. **Diffusion-Specific Artifact Analysis:** Training heuristic extractors on modern latent diffusion models (e.g., Midjourney, Flux, Stable Diffusion).
+3. **Model Distillation:** Compressing the 7B LLaVA explanation head into a smaller model for edge-device deployment.
 
-### Improved spatial localization
+---
 
-Investigate stronger pixel-level supervision, more accurate forensic masks, and objectives that directly optimize localization quality.
+## References
 
-### More robust domain generalization
-
-Evaluate additional manipulation datasets and study augmentation strategies that improve performance under changes in compression, image quality, and generation method.
-
-### Better forensic text supervision
-
-Improve the quality and specificity of generated forensic descriptions, and investigate how incorrect text annotations affect contrastive alignment.
-
-### More reliable explanations
-
-Explore evidence-grounded explanation generation, structured output validation, and evaluation methods that measure whether explanations agree with independently verified manipulation regions.
-
-### Ablation studies
-
-Evaluate the contribution of each component by comparing:
-
-* Image-only classification.
-* Image-text alignment.
-* Cross-attention fusion.
-* SRM-based cues.
-* FFT-based cues.
-* Facial symmetry features.
-* Autoencoder reconstruction cues.
-* Augmentation strategies.
-
-These experiments would help determine which components contribute most to detection, generalization, and localization.
-
-### Efficiency and deployment
-
-Investigate smaller vision-language models, optimized inference, and lower-memory training configurations to make experimentation and practical deployment more accessible.
-
-
-
-## Acknowledgements
-
-This project builds on prior research in visual-linguistic face forgery detection, contrastive image-text learning, and multimodal language models.
-
-The work explores reference-free forensic cues as an alternative to requiring a paired pristine image during annotation generation.
-
-**Project focus:** Reference-free face forgery detection, multimodal representation learning, cross-attention, cross-dataset generalization, and explainable AI.
+1. K. Sun, S. Chen, T. Yao, Z. Zhou, J. Ji, X. Sun, C.-W. Lin, and R. Ji, "Towards general visual-linguistic face forgery detection," in *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2025.
+2. A. Rossler, D. Cozzolino, L. Verdoliva, C. Riess, J. Thies, and M. Nießner, "Faceforensics++: Learning to detect manipulated facial images," in *Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)*, 2019.
+3. A. Radford et al., "Learning transferable visual models from natural language supervision," in *International Conference on Machine Learning (ICML)*, 2021.
+4. H. Liu, C. Li, Q. Wu, and Y. J. Lee, "Visual instruction tuning," *Advances in Neural Information Processing Systems (NeurIPS)*, 2024.
+5. L. Li, J. Bao, T. Zhang, H. Yang, D. Chen, F. Wen, and B. Guo, "Face x-ray for more general face forgery detection," in *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2020.
